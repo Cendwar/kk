@@ -1,10 +1,15 @@
 #spades.py
+#v0.2
+#Optional ToDo: Append games list based on scores being 0 when an ad interrupts end of game
 
 import pywinctl, pyautogui, time, basics
 
+#Parameters
 PIXELRANGE = 5
+UNCERTAINTY_TIMELAPSE = 12
 DEBUG = True
 
+#Defs
 def color_match(actual, expected, tolerance=PIXELRANGE):
     return all(abs(a - e) <= tolerance for a, e in zip(actual, expected))
 
@@ -81,7 +86,7 @@ def initialize_game(banner):
     #Open game and wait for load if it's not open already
     if (gamestate(banner) == "unsure"):
         basics.click_routine(1104, 800)
-        basics.sleep(11)
+        basics.sleep(10)
     banner = banner_check(banner)
     return window, banner
     
@@ -99,7 +104,7 @@ def banner_check(banner):
         banner=True
     return banner
     
-    
+#Main
 def main():
     print("Starting Spades...")
     won = 0
@@ -114,15 +119,21 @@ def main():
         while True:
             window, banner = initialize_game(banner)
             while True:
-                #Where were we? (Main Loop)
-                banner = banner_check(banner)
+                #Where were we? (Main Loop)                
                 window = basics.activate_window()
+                banner = banner_check(banner)
                 state = gamestate(banner)
                 if (state == "unsure"):
-                    if(DEBUG):
-                        print("DEBUG: State was unsure. Attempting to get state once more...")
-                    basics.sleep(8)
-                    state = gamestate(banner)
+                    unsure_time = time.time()
+                    curr_time = time.time()
+                    while (state == "unsure" and (curr_time - unsure_time) < UNCERTAINTY_TIMELAPSE):
+                        if(DEBUG):
+                            print("DEBUG: State was unsure. Attempting to get state once more...")
+                        basics.sleep(0.1)
+                        curr_time = time.time()
+                        if(DEBUG):
+                            print("Time Elapsed: "+f"{curr_time - unsure_time:.2f}")
+                        state = gamestate(banner)
                 if(DEBUG):
                     print("DEBUG: Detected state: "+str(state))
                 #Start
@@ -139,17 +150,17 @@ def main():
                         if banner:
                             #Click bid
                             basics.click_routine(1185, 888)
-                            basics.sleep(0.5)
+                            basics.sleep(0.2)
                             #Click play
                             basics.click_routine(1312, 888)
-                            basics.sleep(4)
+                            basics.sleep(0.2)
                         else:
                             #Click bid
                             basics.click_routine(1185, 848)
-                            basics.sleep(0.5)
+                            basics.sleep(0.2)
                             #Click play
                             basics.click_routine(1312, 848)
-                            basics.sleep(4)
+                            basics.sleep(0.2)
                     case "play":
                         #Click helper lightbulb
                         basics.click_routine(1097, 1035)
@@ -171,9 +182,9 @@ def main():
                         if not clicked:
                             print("Something went wrong trying to click our card.")
                             basics.exit_routine()
-                            basics.sleep(2)
+                            basics.sleep(0.2)
                             break
-                        basics.sleep(5)
+                        basics.sleep(0.2)
                     case "won":
                         end_time = time.time()
                         elapsed_time = end_time - start_time
@@ -182,7 +193,7 @@ def main():
                         start_time = time.time()
                         #Click New Game
                         basics.click_routine(1269, 891)
-                        basics.sleep(11)
+                        basics.sleep(0.2)
                         #Do our bid routine afterwards
                         
                         won = won + 1
@@ -191,12 +202,12 @@ def main():
                         if banner:
                             #Click Continue
                             basics.click_routine(1277, 910)
-                            basics.sleep(5)
+                            basics.sleep(0.2)
                             #Do our bid routine afterwards
                         else:
                             #Click Continue
                             basics.click_routine(1277, 870)
-                            basics.sleep(5)
+                            basics.sleep(0.2)
                     case "lost":
                         end_time = time.time()
                         elapsed_time = end_time - start_time
@@ -205,15 +216,15 @@ def main():
                         start_time = time.time()
                         #Click New Game
                         basics.click_routine(1269, 891)
-                        basics.sleep(11)
+                        basics.sleep(0.2)
                         #Do our bid routine afterwards
                         
                         lost = lost + 1
                         print("Current W/L: "+str(won)+"/"+str(lost))
                     case "unsure":
-                        print("Case was unsure twice. Probably an ad... probably...")
+                        print("Case was unsure for over "+str(UNCERTAINTY_TIMELAPSE)+"s. Probably an ad... probably...")
                         basics.exit_routine()
-                        basics.sleep(2)
+                        basics.sleep(0.2)
                         break
 
     except KeyboardInterrupt:
