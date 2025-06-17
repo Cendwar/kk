@@ -2,12 +2,13 @@
 #v0.2
 #Optional ToDo: Append games list based on scores being 0 when an ad interrupts end of game
 
-import pywinctl, pyautogui, time, basics
+import pywinctl, pyautogui, time, keyboard, sys, basics
 
 #Parameters
 PIXELRANGE = 5
 UNCERTAINTY_TIMELAPSE = 12
 DEBUG = True
+EXIT_KEY = 'c'
 
 #Defs
 def color_match(actual, expected, tolerance=PIXELRANGE):
@@ -22,7 +23,8 @@ def gamestate(banner):
             return "play"
 
     if(DEBUG):
-        print(f"DEBUG: Play r, g, b: {r1} {g1} {b1} && {r2} {g2} {b2}")
+        print(f"DEBUG: Play r, g, b: {r1} {g1} {b1} vs (160, 185, 159)")
+        print(f"DEBUG: Play r, g, b: {r2} {g2} {b2} vs (26, 152, 0)")
 
     # S2 - Select your bid
     if banner:
@@ -39,7 +41,8 @@ def gamestate(banner):
                 return "bid"
 
     if(DEBUG):
-        print(f"DEBUG: Bid r, g, b: {r1} {g1} {b1} && {r2} {g2} {b2}")
+        print(f"DEBUG: Bid r, g, b: {r1} {g1} {b1} vs (28, 145, 243)")
+        print(f"DEBUG: Bid r, g, b: {r2} {g2} {b2} vs (255, 254, 252)")
 
     # S3 - Game Won
     r1, g1, b1 = pyautogui.pixel(1170, 404)
@@ -49,7 +52,8 @@ def gamestate(banner):
             return "won"
 
     if(DEBUG):
-        print(f"DEBUG: Won r, g, b: {r1} {g1} {b1} && {r2} {g2} {b2}")
+        print(f"DEBUG: Won r, g, b: {r1} {g1} {b1} vs (255, 253, 254)")
+        print(f"DEBUG: Won r, g, b: {r2} {g2} {b2} vs (254, 216, 75)")
 
     # S4 - Round Results
     if banner:
@@ -66,7 +70,8 @@ def gamestate(banner):
                 return "round"
 
     if(DEBUG):
-        print(f"DEBUG: Round r, g, b: {r1} {g1} {b1} && {r2} {g2} {b2}")
+        print(f"DEBUG: Round r, g, b: {r1} {g1} {b1} vs (27, 70, 197)")
+        print(f"DEBUG: Round r, g, b: {r2} {g2} {b2} vs (0, 247, 88)")
 
     # S5 - Game Lost
     r1, g1, b1 = pyautogui.pixel(1170, 404)
@@ -76,8 +81,18 @@ def gamestate(banner):
             return "lost"
 
     if(DEBUG):
-        print(f"DEBUG: Lost r, g, b: {r1} {g1} {b1} && {r2} {g2} {b2}")
+        print(f"DEBUG: Lost r, g, b: {r1} {g1} {b1} vs (255, 253, 254)")
+        print(f"DEBUG: Lost r, g, b: {r2} {g2} {b2} vs (250, 251, 147)")
     return "unsure"
+
+def interrupt_routine(game_times):
+    global interrupted
+    interrupted = True
+    try:
+        print("List of "+str(len(game_times))+" game durations: "+str(game_times))
+    except Exception as e:
+        print("Interrupt routine failed: "+str(e))
+    sys.exit(0)
     
 def initialize_game(banner):
     #Activate Window
@@ -86,7 +101,7 @@ def initialize_game(banner):
     #Open game and wait for load if it's not open already
     if (gamestate(banner) == "unsure"):
         basics.click_routine(1104, 800)
-        basics.sleep(10)
+        basics.sleep(5)
     banner = banner_check(banner)
     return window, banner
     
@@ -106,7 +121,9 @@ def banner_check(banner):
     
 #Main
 def main():
-    print("Starting Spades...")
+    print("Starting Spades... Press '"+EXIT_KEY+"' to exit")
+    global interrupted
+    interrupted = False
     won = 0
     lost = 0
     banner = False
@@ -114,11 +131,13 @@ def main():
     end_time = time.time()
     elapsed_time = end_time - start_time
     game_times = []
+    keyboard.add_hotkey(EXIT_KEY, lambda: interrupt_routine(game_times))
+    #keyboard.add_hotkey(EXIT_KEY, interrupt_routine, args=(game_times,))
     
     try:
-        while True:
+        while not interrupted:
             window, banner = initialize_game(banner)
-            while True:
+            while not interrupted:
                 #Where were we? (Main Loop)                
                 window = basics.activate_window()
                 banner = banner_check(banner)
@@ -126,13 +145,14 @@ def main():
                 if (state == "unsure"):
                     unsure_time = time.time()
                     curr_time = time.time()
-                    while (state == "unsure" and (curr_time - unsure_time) < UNCERTAINTY_TIMELAPSE):
+                    while (state == "unsure" and (curr_time - unsure_time) < UNCERTAINTY_TIMELAPSE and not interrupted):
                         if(DEBUG):
                             print("DEBUG: State was unsure. Attempting to get state once more...")
                         basics.sleep(0.1)
                         curr_time = time.time()
                         if(DEBUG):
-                            print("Time Elapsed: "+f"{curr_time - unsure_time:.2f}")
+                            print("DEBUG: Time Elapsed: "+f"{curr_time - unsure_time:.2f}")
+                        banner = banner_check(banner)
                         state = gamestate(banner)
                 if(DEBUG):
                     print("DEBUG: Detected state: "+str(state))
@@ -194,8 +214,6 @@ def main():
                         #Click New Game
                         basics.click_routine(1269, 891)
                         basics.sleep(0.2)
-                        #Do our bid routine afterwards
-                        
                         won = won + 1
                         print("Current W/L: "+str(won)+"/"+str(lost))
                     case "round":
@@ -211,21 +229,22 @@ def main():
                     case "lost":
                         end_time = time.time()
                         elapsed_time = end_time - start_time
-                        print(f"Elapsed time: {elapsed_time} seconds for this game")
+                        print(f"Elapsed time: {elapsed_time:.0f} seconds for this game")
                         game_times.append(f"{elapsed_time:.0f}")
                         start_time = time.time()
                         #Click New Game
                         basics.click_routine(1269, 891)
                         basics.sleep(0.2)
-                        #Do our bid routine afterwards
-                        
                         lost = lost + 1
                         print("Current W/L: "+str(won)+"/"+str(lost))
                     case "unsure":
-                        print("Case was unsure for over "+str(UNCERTAINTY_TIMELAPSE)+"s. Probably an ad... probably...")
-                        basics.exit_routine()
-                        basics.sleep(0.2)
-                        break
+                        if interrupted:
+                            break
+                        else:
+                            print("Case was unsure for over "+str(UNCERTAINTY_TIMELAPSE)+"s. Probably an ad... probably...")
+                            basics.exit_routine()
+                            basics.sleep(0.2)
+                            break
 
     except KeyboardInterrupt:
         print("List of "+str(len(game_times))+" game durations: "+str(game_times))

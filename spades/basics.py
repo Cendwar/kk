@@ -76,7 +76,7 @@ def activate_window(WINDOW_TITLE = "SM-A356U"):
         print(f"An error occurred: {e}")
 
 def sleep(x):
-    delta = random.random() % 0.235
+    delta = random.random() % 0.197
     time.sleep(x+delta)
 
 #Direct app window methods
