@@ -7,7 +7,7 @@ import pywinctl, pyautogui, time, keyboard, sys, basics
 #Parameters
 PIXELRANGE = 5
 UNCERTAINTY_TIMELAPSE = 12
-DEBUG = True
+DEBUG = False
 EXIT_KEY = 'c'
 
 #Defs
@@ -208,7 +208,7 @@ def main():
                     case "won":
                         end_time = time.time()
                         elapsed_time = end_time - start_time
-                        print(f"Elapsed time: {elapsed_time} seconds for this game")
+                        print(f"Elapsed time: {elapsed_time:.0f} seconds for this game")
                         game_times.append(f"{elapsed_time:.0f}")
                         start_time = time.time()
                         #Click New Game
@@ -241,7 +241,8 @@ def main():
                         if interrupted:
                             break
                         else:
-                            print("Case was unsure for over "+str(UNCERTAINTY_TIMELAPSE)+"s. Probably an ad... probably...")
+                            if(DEBUG):
+                                print("Case was unsure for over "+str(UNCERTAINTY_TIMELAPSE)+"s. Probably an ad... probably...")
                             basics.exit_routine()
                             basics.sleep(0.2)
                             break
